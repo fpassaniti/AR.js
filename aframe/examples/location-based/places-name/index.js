@@ -13,7 +13,7 @@ window.onload = () => {
         return navigator.geolocation.getCurrentPosition(function (position) {
 
             // than use it to load from remote APIs some places nearby
-            dynamicLoadPlaces(position.coords)
+            odsLoadPlaces(position.coords)
                 .then((places) => {
                     renderPlaces(places);
                 })
@@ -21,8 +21,7 @@ window.onload = () => {
             (err) => console.error('Error in retrieving position', err),
             {
                 enableHighAccuracy: true,
-                maximumAge: 0,
-                timeout: 27000,
+                maximumAge: 0
             }
         );
     }
@@ -73,18 +72,34 @@ function dynamicLoadPlaces(position) {
         })
 };
 
+function odsLoadPlaces(position) {
+    let endpoint = `https://data.culture.gouv.fr/api/records/1.0/search/?` +
+        `&dataset=liste-et-localisation-des-musees-de-france` +
+        `&geofilter.distance=${position.latitude},${position.longitude},1700`;
+    return fetch(endpoint)
+        .then((res) => {
+            return res.json()
+                .then((resp) => {
+                    return resp.records;
+                })
+        })
+        .catch((err) => {
+            console.error('Error with places API', err);
+        })
+};
+
 function renderPlaces(places) {
     let scene = document.querySelector('a-scene');
 
     places.forEach((place) => {
-        let latitude = place.location.lat;
-        let longitude = place.location.lng;
+        let latitude = place.fields.geolocalisation[0];
+        let longitude = place.fields.geolocalisation[1];
 
         // add place name
         let text = document.createElement('a-link');
         text.setAttribute('gps-entity-place', `latitude: ${latitude}; longitude: ${longitude};`);
-        text.setAttribute('title', place.name);
-        text.setAttribute('href', 'http://www.example.com/');
+        text.setAttribute('title', place.fields.nom_officiel_du_musee);
+        text.setAttribute('href', place.fields.url);
         text.setAttribute('scale', '15 15 15');
 
         text.addEventListener('loaded', () => {
